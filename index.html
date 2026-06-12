@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>乐迷模拟器 Alpha 1.8 (数值平衡版)</title>
+<style>
+    body{ font-family: Arial, sans-serif; max-width:800px; margin:auto; padding:20px; background:#f5f5f5; }
+    #game{ background:white; padding:20px; border-radius:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    button{ margin:5px; padding:10px 15px; background: #e0e0e0; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover{ background: #d0d0d0; }
+    #log{ margin-top:20px; height:250px; overflow-y:auto; border:1px solid #ccc; padding:10px; background: #fafafa; }
+    .input-group { margin: 15px 0; }
+    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .input-group input, .input-group select { padding: 8px; width: 280px; }
+    .slot-select { padding: 10px; font-size: 14px; margin-right: 10px; border-radius: 5px; border: 1px solid #ccc; width: 230px; }
+    .status-bar { background: #eee; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    
+    #gigStageModal { display:none; background: #1a1a24; color: #fff; padding: 20px; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    #gigStageModal button { background: #323242; color: #fff; border: 1px solid #555; }
+    #gigStageModal button:hover { background: #4a4a5a; }
+    .highlight { color: #ff4757; font-weight: bold; }
+    .green-text { color: #2ed573; font-weight: bold; }
+    .system-notice { color: #f1c40f; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="game">
+<h1>乐迷模拟器 Alpha 1.8</h1>
+
+<!-- 1. 初始设置界面 -->
+<div id="setup">
+    <h3>创建你的乐迷档案</h3>
+    <div class="input-group">
+        <label>输入你本命乐队的名字：</label>
+        <input type="text" id="bandNameInput" placeholder="现实存在的乐队或者oc乐队，随你喜好！">
+    </div>
+    <div class="input-group">
+        <label>本命乐队的体量量级：</label>
+        <select id="bandSizeSelect">
+            <option value="small">小型 (地下小众，门票便宜，易见乐手)</option>
+            <option value="medium">中型 (圈内中坚，门票中等，中规中矩)</option>
+            <option value="legend">传奇 (体育场天团，门票巨贵，难见乐手)</option>
+        </select>
+    </div>
+    <div class="input-group">
+        <label>本命乐队的活跃年代 (决定巡演频率)：</label>
+        <select id="bandAgeSelect">
+            <option value="young">年轻乐队 (活跃，触发阈值：50 狂热)</option>
+            <option value="middle">中年乐队 (偶尔，触发阈值：60 狂热)</option>
+            <option value="old">老年乐队 (极其佛系，触发阈值：75 狂热)</option>
+        </select>
+    </div>
+    <div class="input-group">
+        <label>你的听歌倾向（专一 vs 博爱）【少量决定初始乐队羁绊和知识数值】：</label>
+        <span style="font-size: 0.9em; color:#666;">极度专一 (1) </span>
+        <input type="range" id="omnivoreInput" min="1" max="10" value="5" style="width:150px;">
+        <span style="font-size: 0.9em; color:#666;"> 杂食博爱 (10)</span>
+    </div>
+    <button onclick="initGame()">开启追乐队生涯</button>
+</div>
+
+<!-- 2. 游戏主界面 -->
+<div id="main" style="display:none;">
+    <h2 id="timeTitle"></h2>
+    
+    <div class="status-bar">
+        <div>💰 金钱: ￥<span id="stat-money"></span></div>
+        <div>⚡ 体力: <span id="stat-energy"></span>/100</div>
+        <div>❤️ 满足度: <span id="stat-satisfy"></span></div>
+        <div>🧠 知识: <span id="stat-knowledge"></span></div>
+        <div>🔥 狂热度: <span id="stat-obsession"></span></div>
+        <div>📣 声誉: <span id="stat-fame"></span></div>
+    </div>
+
+    <!-- 季度时间分配区 -->
+    <div id="allocationArea">
+        <h3>本季度时间分配（请选择3项主要行动）</h3>
+        <select id="slot1" class="slot-select"></select>
+        <select id="slot2" class="slot-select"></select>
+        <select id="slot3" class="slot-select"></select>
+        <br><br>
+        <button onclick="executeQuarter()" style="background: #2ed573; color: white; font-weight: bold;">确认分配并结算本季</button>
+    </div>
+
+    <!-- 演出现场及分支大剧场 -->
+    <div id="gigStageModal">
+        <h3 id="gigTitle" style="color: #ff4757; margin-top:0;">🎸 演出现场事件</h3>
+        <p id="gigStepText"></p>
+        <div id="gigOptions"></div>
+    </div>
+
+    <div id="log"></div>
+</div>
+</div>
+
+<script>
+let player = {
+    money: 1000, energy: 100, satisfaction: 10, knowledge: 10, obsession: 0, fame: 0,
+    quarter: 1, totalQuarters: 12, 
+    vanity: 0, bandRelation: 0, scalperCount: 0, giftTicketCount: 0, 
+    bandName: "", bandSize: "", bandAge: "", omnivore: 5
+};
+
+const actionsList = [
+    { value: "sleep", text: "💤 老实睡觉休息 (体力+35)" },
+    { value: "work", text: "💼 兼职打工 (金钱+500, 体力-30, 受到精神创伤)" }, 
+    { value: "archaeology", text: "🔍 考古乐队 (知识与狂热随机增加, 体力-25)" },
+    { value: "dig", text: "💿 唱片店淘碟 (金钱-150, 知识随机增加，狂热随机增加，满足随机增加, 体力-15)" },
+    { value: "internet", text: "📱 网上冲浪吃瓜 (可能发生随机事件, 体力-0)" }, 
+    { value: "group", text: "💬 参与水群 (可能发生随机事件, 体力-0)" }, 
+    { value: "social", text: "📱 发私号社媒宣传 (声誉+15，满足度+15, 狂热+5，体力-5)" } 
+];
+
+function initGame(){
+    let name = document.getElementById("bandNameInput").value.trim();
+    if(!name){ alert("请输入一个本命乐队的名字！"); return; }
+    
+    player.bandName = name;
+    player.bandSize = document.getElementById("bandSizeSelect").value;
+    player.bandAge = document.getElementById("bandAgeSelect").value;
+    player.omnivore = parseInt(document.getElementById("omnivoreInput").value);
+
+    player.knowledge = player.omnivore;
+    player.bandRelation = 11 - player.omnivore;
+
+    for(let i=1; i<=3; i++){
+        let select = document.getElementById("slot"+i);
+        actionsList.forEach(act => {
+            let opt = document.createElement("option");
+            opt.value = act.value; opt.text = act.text;
+            select.appendChild(opt);
+        });
+        select.selectedIndex = i;
+    }
+
+    document.getElementById("setup").style.display="none";
+    document.getElementById("main").style.display="block";
+    updateUI();
+}
+
+function updateUI(){
+    let year = Math.ceil(player.quarter / 4);
+    let currentQuarterNum = player.quarter % 4 === 0 ? 4 : player.quarter % 4;
+    document.getElementById("timeTitle").innerText = `第 ${year} 年 - 第 ${currentQuarterNum} 季度 (总第 ${player.quarter}/${player.totalQuarters} 季)`;
+
+    document.getElementById("stat-money").innerText = player.money;
+    document.getElementById("stat-energy").innerText = player.energy;
+    document.getElementById("stat-satisfy").innerText = player.satisfaction; 
+    document.getElementById("stat-knowledge").innerText = player.knowledge;
+    document.getElementById("stat-obsession").innerText = player.obsession;
+    document.getElementById("stat-fame").innerText = player.fame;
+}
+
+function addLog(text){
+    let log = document.getElementById("log");
+    log.innerHTML = "<p>"+text+"</p>" + log.innerHTML;
+}
+
+function getRandomRange(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function triggerInternetEvent(index) {
+    let events = [
+        {
+            weight: 0.35,
+            func: () => {
+                let val = Math.floor(Math.random() * 5) + 1;
+                player.knowledge += val;
+                addLog(`格子 ${index+1}：📱 网上冲浪：你意外吃到了音乐内幕八卦！知识+${val}。`);
+            }
+        },
+        {
+            weight: 0.35,
+            func: () => {
+                let val = Math.floor(Math.random() * 5) + 1;
+                player.knowledge = Math.max(0, player.knowledge - val);
+                addLog(`格子 ${index+1}：📱 网上冲浪：你刷了一堆短视频，脑子彻底麻木，知识-${val}。`);
+            }
+        },
+        {
+            weight: 0.15,
+            func: () => {
+                player.knowledge += 10; player.satisfaction += 10; 
+                addLog(`格子 ${index+1}：📱 网上冲浪：意外刷到某支古早团的未公开现场录像！狂喜！知识+10，满足度+10。`);
+            }
+        },
+        {
+            weight: 0.15,
+            func: () => {
+                let cost = Math.min(player.money, 60);
+                player.money -= cost; player.satisfaction += 20; player.obsession += 10;
+                addLog(`格子 ${index+1}：📱 网上冲浪：看到有同担在出本命的绝版早期碟，全款拿下了！金钱-${cost}，满足度+20，狂热+10。`);
+            }
+        }
+    ];
+    executeRandomEvent(events);
+}
+
+function triggerGroupEvent(index) {
+    let events = [
+        {
+            weight: 0.25,
+            func: () => {
+                let val = Math.floor(Math.random() * 5) + 1;
+                player.knowledge += val; player.obsession += val; player.satisfaction +=10;
+                addLog(`格子 ${index+1}：💬 群聊：有好心大佬在群里分享了绝版干货！知识+${val}，狂热度+${val}，满足度+10。`);
+            }
+        },
+        {
+            weight: 0.25,
+            func: () => {
+                let val = Math.floor(Math.random() * 5) + 1;
+                player.knowledge = Math.max(0, player.knowledge - val);
+                player.obsession = Math.max(0, player.obsession - val);
+                player.satisfaction = Math.max(0, player.satisfaction - 10); 
+                addLog(`格子 ${index+1}：💬 群聊：群里因为谣言小作文发生撕逼。知识-${val}，狂热度-${val}，满足度-10。`);
+            }
+        },
+        {
+            weight: 0.25,
+            func: () => {
+                player.fame += 10; player.satisfaction += 20;
+                addLog(`格子 ${index+1}：💬 群聊：你在群里有理有据的发言得到了大家的认可，声誉+10，满足度+20。`);
+            }
+        },
+        {
+            weight: 0.25,
+            func: () => {
+                player.obsession += 12;
+                addLog(`格子 ${index+1}：💬 群聊：有知情人爆料说【${player.bandName}】在悄悄排新歌，可能要上大动作！狂热度+12。`);
+            }
+        }
+    ];
+    executeRandomEvent(events);
+}
+
+function executeRandomEvent(eventPool) {
+    let rand = Math.random();
+    let sum = 0;
+    for(let i = 0; i < eventPool.length; i++) {
+        sum += eventPool[i].weight;
+        if(rand <= sum) {
+            eventPool[i].func();
+            return;
+        }
+    }
+    eventPool[0].func();
+}
+
+function executeQuarter() {
+    let choices = [document.getElementById("slot1").value, document.getElementById("slot2").value, document.getElementById("slot3").value];
+
+    let simulatedEnergy = player.energy;
+    choices.forEach(choice => {
+        if(choice === "work") simulatedEnergy -= 30;
+        else if(choice === "archaeology") simulatedEnergy -= 25;
+        else if(choice === "dig") simulatedEnergy -= 15;
+        else if(choice === "social") simulatedEnergy -= 5;
+        else if(choice === "sleep") simulatedEnergy += 35;
+    });
+
+    if (simulatedEnergy < 10) {
+        alert(`🚨 体力透支！安排的行动会让你透支到 ${simulatedEnergy}！请留出格子睡觉！`);
+        return;
+    }
+
+    let year = Math.ceil(player.quarter / 4);
+    let currentQuarterNum = player.quarter % 4 === 0 ? 4 : player.quarter % 4;
+    addLog(`<b>--- 第 ${year} 年 - 第 ${currentQuarterNum} 季度 行动报告 ---</b>`);
+    
+    choices.forEach((choice, index) => {
+        if(choice === "sleep") { 
+            player.energy = Math.min(100, player.energy + 35); 
+            addLog(`格子 ${index+1}：💤 睡觉休息，体力+35。`); 
+        }
+        else if(choice === "work") { 
+            player.money += 500; 
+            player.energy -= 30; 
+
+            player.satisfaction -= 30;
+            player.knowledge -= 20;
+            player.obsession -= 10;
+
+            addLog(`格子 ${index+1}：💼 兼职打工。金钱+500，体力-30。大剂量的社会毒打狠狠磨损了你的精神——<span class="highlight">满足度-30，知识-20，狂热-10</span>。挣到了辛苦费，人却成了空壳。`); 
+        }
+        else if(choice === "archaeology") { 
+            player.energy -= 25; 
+            let randomKnowledge = getRandomRange(10, 20);
+            let randomObsession = getRandomRange(10, 20);
+            
+            player.knowledge += randomKnowledge; 
+            player.obsession += randomObsession; 
+            addLog(`格子 ${index+1}：🔍 闭门考古，深入翻阅了乐队的早期采访和Demo。<span class="green-text">知识+${randomKnowledge}，狂热+${randomObsession}</span>，体力-25。`); 
+        }
+        else if(choice === "dig") {
+            if(player.money >= 150) { 
+                player.money -= 150; 
+                player.energy -= 15;
+                
+                let randomKnowledge = getRandomRange(10, 25);
+                let randomSatisfy = getRandomRange(10, 15);
+                let randomObsession = getRandomRange(5, 15);
+                
+                player.knowledge += randomKnowledge;
+                player.satisfaction += randomSatisfy;
+                player.obsession += randomObsession;
+                
+                addLog(`格子 ${index+1}：💿 唱片店淘实体。金钱-150，体力-15。<span class="green-text">知识+${randomKnowledge}，满足度+${randomSatisfy}，狂热+${randomObsession}</span>。`); 
+            }
+            else { addLog(`格子 ${index+1}：❌ 钱不够淘碟。`); }
+        }
+        else if(choice === "internet") { triggerInternetEvent(index); }
+        else if(choice === "group") { triggerGroupEvent(index); }
+        else if(choice === "social") {
+            player.energy -= 5; player.satisfaction += 15; player.fame += 15; player.vanity += 10; player.obsession += 5;
+            addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！满足度+15，声誉+15，狂热+5。`);
+        }
+    });
+
+    updateUI();
+    determineGigEvent();
+}
+
+// 动态获取当前演出的周边价格
+function getMerchCost() {
+    if(currentGigType === "mainBand") {
+        return player.bandSize === "small" ? 80 : player.bandSize === "medium" ? 180 : 350;
+    }
+    if(currentGigType === "boutique") return 60;
+    if(currentGigType === "indie" || currentGigType === "festival") return 150;
+    if(currentGigType === "mass") return 280;
+    return 150; 
+}
+
+
+// ================= 演出现场及夏季双轨选择 =================
+let currentGigType = ""; 
+let gigCost = 0;
+let gigStep = 0;
+let summerQueue = []; 
+let hasBoughtMerch = false; 
+
+function determineGigEvent() {
+    document.getElementById("allocationArea").style.display = "none";
+    document.getElementById("gigStageModal").style.display = "block";
+    gigStep = 0;
+    hasBoughtMerch = false; 
+
+    let currentQuarterNum = player.quarter % 4 === 0 ? 4 : player.quarter % 4;
+
+    if(currentQuarterNum === 2) {
+        summerQueue = [];
+        document.getElementById("gigTitle").innerText = "☀️ 盛夏音乐季 - 演出抉择";
+        let textObj = document.getElementById("gigStepText");
+        let optionsObj = document.getElementById("gigOptions");
+        optionsObj.innerHTML = "";
+
+        let normalGigType = "";
+        let normalCost = 220;
+        let ageFactor = player.bandAge === "young" ? 1.0 : player.bandAge === "middle" ? 1.2 : 1.5;
+        let reqObsession = 50 * ageFactor;
+
+        if(player.obsession >= reqObsession) {
+            normalGigType = "mainBand";
+            normalCost = player.bandSize === "small" ? 150 : player.bandSize === "medium" ? 320 : 680;
+            textObj.innerHTML = `这个夏天不仅有【🎪盛夏音乐节】(￥800)，同时你的本命乐队【🎸${player.bandName}】巡演也重合降临了(￥${normalCost})！<br><br>你可以自由决定今夏的行程：`;
+        } else {
+            normalGigType = "indie";
+            textObj.innerHTML = `这个夏天不仅有大型【🎪盛夏音乐节】(￥800)，同时Livehouse里也有一场【🎸优质独立乐队现场】(￥220)！<br><br>你可以自由决定今夏的行程：`;
+        }
+
+        optionsObj.innerHTML += `<button onclick="chooseSummerPath('both', '${normalGigType}', ${normalCost})">🔥 两个都去！(总共需门票 ￥${800 + normalCost})</button>`;
+        optionsObj.innerHTML += `<button onclick="chooseSummerPath('festival', '${normalGigType}', ${normalCost})">🎪 只去盛夏音乐节 (￥800)</button>`;
+        optionsObj.innerHTML += `<button onclick="chooseSummerPath('livehouse', '${normalGigType}', ${normalCost})">🎸 只去Livehouse现场 (￥${normalCost})</button>`;
+        optionsObj.innerHTML += `<button onclick="chooseSummerPath('none', '${normalGigType}', ${normalCost})">🍃 都不去，省钱躺平 (体力恢复+40)</button>`;
+        return;
+    }
+
+    generateNormalGig();
+}
+
+function generateNormalGig() {
+    let ageFactor = player.bandAge === "young" ? 1.0 : player.bandAge === "middle" ? 1.2 : 1.5;
+    let reqObsession = 50 * ageFactor;
+
+    if(player.obsession >= reqObsession) {
+        currentGigType = "mainBand";
+        gigCost = player.bandSize === "small" ? 150 : player.bandSize === "medium" ? 320 : 680;
+        document.getElementById("gigTitle").innerText = `🎸 本命乐队 【${player.bandName}】 巡演降临！`;
+    } else {
+        let randPool = Math.random();
+        if(player.knowledge < 40) {
+            currentGigType = "mass"; gigCost = 400;
+            document.getElementById("gigTitle").innerText = "🎤 大众流行巡演打卡";
+        } else if(player.knowledge >= 40 && player.knowledge <= 70) {
+            if(randPool < 0.5) { currentGigType = "mass"; gigCost = 400; document.getElementById("gigTitle").innerText = "🎤 大众流行巡演打卡"; }
+            else { currentGigType = "indie"; gigCost = 220; document.getElementById("gigTitle").innerText = "🎸 优质独立乐队现场"; }
+        } else {
+            if(randPool < 0.333) { currentGigType = "mass"; gigCost = 400; document.getElementById("gigTitle").innerText = "🎤 大众流行巡演打卡"; }
+            else if(randPool < 0.666) { currentGigType = "indie"; gigCost = 220; document.getElementById("gigTitle").innerText = "🎸 优质独立乐队现场"; }
+            else { currentGigType = "boutique"; gigCost = 100; document.getElementById("gigTitle").innerText = "🔮 遗珠精品地下现场"; }
+        }
+    }
+    showGigStep();
+}
+
+function chooseSummerPath(choice, normalType, normalCost) {
+    if(choice === 'both') {
+        summerQueue = [
+            { type: "festival", cost: 800, title: "🎪 盛夏音乐节主场" },
+            { type: normalType, cost: normalCost, title: `🎸 紧接着的 【${normalType === "mainBand" ? player.bandName : "独立现场"}】` }
+        ];
+        nextSummerGig();
+    }
+    else if(choice === 'festival') {
+        summerQueue = [{ type: "festival", cost: 800, title: "🎪 盛夏音乐节主场" }];
+        nextSummerGig();
+    }
+    else if(choice === 'livehouse') {
+        summerQueue = [{ type: normalType, cost: normalCost, title: `🎸 奔赴现场` }];
+        nextSummerGig();
+    }
+    else {
+        player.energy = Math.min(100, player.energy + 40);
+        let msg = "🍃 夏季选择：在这个火热的夏天，你选择闭门不出，大睡一场。";
+        addLog(msg);
+        closeGigStage();
+    }
+}
+
+function nextSummerGig() {
+    if(summerQueue.length > 0) {
+        let nextGig = summerQueue.shift();
+        currentGigType = nextGig.type;
+        gigCost = nextGig.cost;
+        document.getElementById("gigTitle").innerText = nextGig.title;
+        gigStep = 0;
+        hasBoughtMerch = false;
+        showGigStep();
+    } else {
+        closeGigStage();
+    }
+}
+
+function closeGigStage() {
+    document.getElementById("gigStageModal").style.display = "none";
+    document.getElementById("allocationArea").style.display = "block";
+    player.quarter++;
+    player.energy = Math.min(100, player.energy + 20);
+    if(player.quarter > player.totalQuarters) { ending(); } else { updateUI(); }
+}
+
+function showGigStep() {
+    let textObj = document.getElementById("gigStepText");
+    let optionsObj = document.getElementById("gigOptions");
+    optionsObj.innerHTML = "";
+
+    if(gigStep === 0) {
+        textObj.innerHTML = `当前门票价格：<span class="highlight">￥${gigCost}</span>（你目前存款：￥${player.money}）。`;
+        
+        if(player.money >= gigCost) {
+            optionsObj.innerHTML += `<button onclick="handleGigStep(1)">正价买票入场 (扣除￥${gigCost})</button>`;
+        } else {
+            optionsObj.innerHTML += `<button onclick="triggerGiftTicketRequest()" style="background:#0984e3; font-weight: bold;">[资金不足] 尝试私信要张赠票？</button>`;
+        }
+        optionsObj.innerHTML += `<button onclick="handleGigStep(2)">算了不去，直接跳过这场</button>`;
+        
+        if((currentGigType === "mass" || (currentGigType === "mainBand" && player.bandSize === "legend")) && player.money >= gigCost) {
+            optionsObj.innerHTML += `<button onclick="handleGigStep(99)" style="background:#d63031;">挂闲鱼倒卖门票！(金钱+400)</button>`;
+        }
+    }
+    else if(gigStep === 0.5) {
+        textObj.innerHTML = `顺利通过安检！你感到嗓子冒烟。当前体力：<b>${player.energy}</b>/100。<br><br>今晚要在场地吧台喝点什么补充体力吗？`;
+        optionsObj.innerHTML += `<button onclick="buyDrink('none')">不喝，喝场地免费自来水 (体力+0)</button>`;
+        if(player.money >= 25) optionsObj.innerHTML += `<button onclick="buyDrink('soda')">🥤 来杯软饮 (￥25) -> 体力+5, 满足+2</button>`;
+        if(player.money >= 80) optionsObj.innerHTML += `<button onclick="buyDrink('beer')">🍺 场地特调精酿 (￥80) -> 体力+15, 满足+10</button>`;
+        if(player.money >= 150) optionsObj.innerHTML += `<button onclick="buyDrink('shot')">🥃 威士忌续命 (￥150) -> 体力+30, 满足+20</button>`;
+    }
+    else if(gigStep === 1) {
+        let massNotice = currentGigType === "mass" ? "（商业现场极度拥挤，冲前排消耗巨大）" : "";
+        textObj.innerHTML = `站在入场通道口，音乐响起！当前体力：<b>${player.energy}</b>。${massNotice}`;
+        let costFront = currentGigType === "mass" ? 45 : 30;
+        if(player.energy >= costFront) {
+            optionsObj.innerHTML += `<button onclick="handleGigStep(3)">死磕第一排！(体力-${costFront})</button>`;
+        } else {
+            optionsObj.innerHTML += `<button style="opacity:0.5;" disabled>冲第一排 (体力不足 ${costFront})</button>`;
+        }
+        optionsObj.innerHTML += `<button onclick="handleGigStep(4)">站在后排音控台附近 (体力-10)</button>`;
+    }
+    else if(gigStep === 2) {
+        let merchCost = getMerchCost();
+        textObj.innerHTML = `演出高潮结束！你路过周边摊位，本次特制周边售价 <span class="highlight">￥${merchCost}</span>。<br><br><span class="highlight">⚠️ 注意</span>：购买周边后才能触发见乐手剧情。`;
+        optionsObj.innerHTML += `<button onclick="handleGigStep(5)">砸钱拿下周边，准备去堵乐手！(扣除￥${merchCost})</button>`;
+        optionsObj.innerHTML += `<button onclick="handleGigStep(6)">理智克制不买周边（稍后将直接离场回家）</button>`;
+    }
+    else if(gigStep === 3) {
+        if(hasBoughtMerch) {
+            textObj.innerHTML = `你顺利来到了散场后的区域。你要去后台出口碰运气吗？(消耗20体力)`;
+            if(player.energy >= 20) {
+                optionsObj.innerHTML += `<button onclick="handleStalking(1)">死等乐手！(体力-20)</button>`;
+            } else {
+                optionsObj.innerHTML += `<button style="opacity:0.5;" disabled>体力不足无法等待</button>`;
+            }
+            optionsObj.innerHTML += `<button onclick="handleStalking(2)">去他们下榻的酒店门口围堵！</button>`;
+            optionsObj.innerHTML += `<button onclick="handleStalking(3)">算了，买到周边已经很满足，回家！</button>`;
+        } else {
+            textObj.innerHTML = `你手里空空如也，跟着大部队直接走出了Livehouse，坐地铁回家。`;
+            optionsObj.innerHTML += `<button onclick="finishGigFlow()">坐地铁回家</button>`;
+        }
+    }
+}
+
+function buyDrink(type) {
+    let msg = "";
+    if(type === 'soda') { player.money -= 25; player.energy = Math.min(100, player.energy + 5); player.satisfaction += 2; msg = "🥤 你买了一杯冰可乐，补充了一点水分。"; }
+    else if(type === 'beer') { player.money -= 80; player.energy = Math.min(100, player.energy + 15); player.satisfaction += 10; msg = "🍺 你点了一杯场地特调精酿，微醺着冲进现场！"; }
+    else if(type === 'shot') { player.money -= 150; player.energy = Math.min(100, player.energy + 30); player.satisfaction += 20; msg = "🥃 威士忌断片续命！心脏狂跳，体力暴涨！"; }
+    else { msg = "💧 喝水就很好。"; }
+    addLog(msg);
+    gigStep = 1; updateUI(); showGigStep();
+}
+
+function triggerGiftTicketRequest() {
+    let textObj = document.getElementById("gigStepText");
+    let optionsObj = document.getElementById("gigOptions");
+    optionsObj.innerHTML = "";
+
+    if(currentGigType !== "mainBand") {
+        player.satisfaction = Math.max(0, player.satisfaction - 20);
+        let msg = `❌【白嫖失败】你私信了当前现场的乐手/主页要求赠票。由于不是本命，人家根本不认识你，直接被无视。满足度-20。`;
+        addLog(msg);
+        textObj.innerHTML = `<span class='highlight'>【白嫖失败】</span>不是本命的乐队私信要赠票直接被无视。满足度-20。`;
+        optionsObj.innerHTML = `<button onclick="finishGigFlow()">灰溜溜回家</button>`;
+    } else {
+        if(player.bandRelation >= 60 && Math.random() < 0.6) {
+            player.giftTicketCount++; player.satisfaction += 50; player.bandRelation +=20;
+            let msg = `🌟【奇迹发生！】主唱亲自给你安排了一张工作赠票！“没钱也来看，真有你的，进来吧！”`;
+            addLog(msg);
+            textObj.innerHTML = `<span class='green-text'>🌟【奇迹发生！】</span>主唱给你安排了工作赠票！满足度增加！`;
+            optionsObj.innerHTML = `<button onclick="handleGiftSuccess()">泪流满面地入场</button>`;
+        } else {
+            let loseObs = Math.floor(player.obsession * 0.5);
+            player.obsession -= loseObs; player.satisfaction = Math.max(0, player.satisfaction - 40);
+            let msg = "❌【鸿沟】私信被已读不回。你感到一阵屈辱。狂热度减半。";
+            addLog(msg);
+            textObj.innerHTML = `<span class='highlight'>【鸿沟】</span>私信被已读不回。狂热度减半(-${loseObs})。`;
+            optionsObj.innerHTML = `<button onclick="finishGigFlow()">独自离场</button>`;
+        }
+    }
+}
+
+function handleGiftSuccess() { gigStep = 0.5; showGigStep(); } 
+
+function handleStalking(type) {
+    let textObj = document.getElementById("gigStepText");
+    let optionsObj = document.getElementById("gigOptions");
+    optionsObj.innerHTML = "";
+
+    if(type === 1) {
+        player.energy -= 20;
+        
+        let playerPower = 0;
+        let powerDetail = "";
+        
+        if(currentGigType === "mainBand") {
+            playerPower = Math.floor(player.bandRelation * 0.5 + player.obsession * 0.4 + player.knowledge * 0.1);
+        } else {
+            playerPower = Math.floor(player.fame * 0.3 + player.knowledge * 0.1 + player.obsession * 0.6);
+        }
+
+        let difficulty = 30; // 默认拼盘/精品难度
+        if(currentGigType === "boutique") difficulty = 25;
+        if(currentGigType === "indie") difficulty = 55;  
+        if(currentGigType === "mass") difficulty = 85;      
+        if(currentGigType === "festival") difficulty = 95;  
+        if(currentGigType === "mainBand") {
+            // 本命乐队见乐手难度重构：小 30 / 中 55 / 大 90
+            difficulty = player.bandSize === "small" ? 30 : player.bandSize === "medium" ? 55 : 90; 
+        }
+
+        let dice = getRandomRange(1, 20);
+        let totalScore = playerPower + dice;
+
+        if(totalScore >= difficulty) {
+            if(currentGigType === "mainBand") { 
+                player.bandRelation += 15; 
+                let msg = `🌟【检定成功！】(综合能力:${playerPower} + 骰子:${dice} ＞ 门槛:${difficulty})。主唱推开门，一眼就认出了你！感动地拉着你聊了会儿天。羁绊+15！`;
+                addLog(msg); textObj.innerHTML = `<span class='green-text'>${msg}</span>`;
+            } else { 
+                player.knowledge += 15; player.satisfaction += 10;
+                let msg = `🌟【检定成功！】(综合能力（声誉、狂热度和知识）:${playerPower} + 骰子:${dice} ＞ 门槛:${difficulty})。乐手出来了！你凭着一腔狂热等到了他们，且由于你聊得非常深入，他们非常惊喜地和你交流了很久！知识+15，满足度+10。`;
+                addLog(msg); textObj.innerHTML = msg;
+            }
+        } else {
+            let msg = "";
+            if(currentGigType === "mainBand" && player.bandSize === "legend") {
+                msg = `❌【检定失败】(综合能力:${playerPower} + 骰子:${dice} ＜ 门槛:${difficulty})。传奇大团的保镖队直接拉起警戒线清场，房车冷酷开走。资本的安保门槛高企（${difficulty}点），你的综合声誉暂时无法打破壁垒。`;
+            } else {
+                msg = `❌【检定失败】(综合能力（声誉、狂热度和知识）:${playerPower} + 骰子:${dice} ＜ 门槛:${difficulty})。你在散场后等了一会想和他们说话，但乐手早就从后门溜走去吃宵夜了，毕竟现在的他们可不是那么好堵到的（门槛:${difficulty}点），你的综合能力不足。`;
+            }
+            addLog(msg); textObj.innerHTML = msg;
+        }
+        optionsObj.innerHTML = `<button onclick="finishGigFlow()">有些疲惫，回家</button>`;
+    }
+    else if(type === 2) {
+        player.vanity += 50; 
+        if(currentGigType === "mainBand") {
+            player.bandRelation = Math.max(0, player.bandRelation - 20);
+            let msg = `⚠️【越界围堵】你死守大堂。乐手叹气。羁绊-20，虚荣+50！`;
+            addLog(msg); textObj.innerHTML = `<span class='highlight'>${msg}</span>`;
+        } else {
+            player.fame += 30;
+            let msg = `小乐手深夜在酒店疲惫地配合你假笑签名。你发出去社媒炫耀了一通，虽然有人骂你，但仍然有不少人羡慕你。声誉+30，虚荣+50！`;
+            addLog(msg); textObj.innerHTML = msg;
+        }
+        optionsObj.innerHTML = `<button onclick="finishGigFlow()">离开酒店</button>`;
+    }
+    else { addLog("你直接回家了。"); finishGigFlow(); }
+}
+
+function handleGigStep(choice) {
+    if(choice === 99) {
+        player.money += 400; player.satisfaction -= 66; player.scalperCount++;
+        let msg = "⚠️ 倒卖门票成功：金钱+400，但作为乐迷的良心被狗吃了，满足度大减！";
+        addLog(`<span class='highlight'>${msg}</span>`);
+        if(player.scalperCount >= 3) { player.fame = -999; addLog("🚨 全网曝光你是臭名昭著的黄牛，声誉崩盘！"); }
+        finishGigFlow(); return;
+    }
+
+    if(gigStep === 0) {
+        if(choice === 1) { player.money -= gigCost; addLog(`🎸 买票成功，检票入场。`); gigStep = 0.5; showGigStep(); } 
+        else { addLog(`🍃 跳过演出。`); finishGigFlow(); }
+        updateUI();
+    }
+    else if(gigStep === 1) {
+        let costFront = currentGigType === "mass" ? 45 : 30;
+        if(choice === 3) {
+            player.energy -= costFront;
+            if(currentGigType === "mass") { player.satisfaction += 25; addLog("前排：挤得汗流浃背。满足度+25。"); }
+            else if(currentGigType === "indie") { player.knowledge += 10; player.obsession += 10; addLog("前排：看独立现场过瘾！知识+15，狂热+10。"); }
+            else if(currentGigType === "boutique") { player.knowledge += 20; player.obsession += 15; addLog("前排：精品地下团！知识+15，狂热+15！"); }
+            else if(currentGigType === "festival") { player.satisfaction += 50; player.knowledge += 25; addLog("前排：泥地狂蹦！并听到了很多新乐队！满足度+50，知识+25。"); }
+            else if(currentGigType === "mainBand") { 
+                player.obsession += 25; 
+                let relAdd = player.bandSize === "small" ? 20 : player.bandSize === "medium" ? 15 : 10;
+                player.bandRelation += relAdd; addLog(`前排：趴在本命栏杆前！羁绊+${relAdd}。`);
+            }
+        } else {
+            player.energy -= 10; 
+            if(currentGigType === "mass") { player.satisfaction += 2; addLog("后排：刷着手机听完商业流行歌。满足度+2。"); }
+            else if(currentGigType === "festival") { player.satisfaction += 50; player.knowledge += 25; addLog("在音乐节后方划水，认识了一些新乐队。满足度+25，知识+10。"); }
+            else { player.knowledge += 15; addLog("后排：在音控台研究编曲，知识+5。"); }
+        }
+        updateUI();
+        gigStep = 2; showGigStep();
+    }
+    else if(gigStep === 2) {
+        let merchCost = currentGigType === "festival" ? 250 : 150;
+        if(choice === 5) {
+            if(player.money < merchCost) { 
+                alert("钱包空了，买不起周边！离开吧。"); 
+                hasBoughtMerch = false; 
+            }
+            else {
+                player.money -= merchCost;
+                hasBoughtMerch = true; 
+                let msg = "";
+                if(currentGigType === "mainBand") { player.bandRelation += 10; msg = "👕 买了本命限定周边，羁绊+10！"; }
+                else { player.satisfaction += 30; msg = "👕 买了纪念T恤，满足度+30！"; }
+                addLog(msg);
+            }
+        } else {
+            hasBoughtMerch = false;
+            addLog("👕 你空着手错过了周边。无法接触乐手。");
+        }
+        updateUI();
+        gigStep = 3; showGigStep();
+    }
+}
+
+function finishGigFlow() {
+    if(currentGigType === "mainBand" && gigStep > 0) {
+        let loseObsession = Math.floor(player.obsession * 0.5);
+        player.obsession -= loseObsession;
+        addLog(`<span class='system-notice'>[戒断反应]</span>：看完本命演出后狂热度骤降了一半（-${loseObsession}），再攒攒狂热度盼着他们下次来吧。`);
+    }
+
+    if(summerQueue && summerQueue.length > 0) {
+        nextSummerGig();
+    } else {
+        document.getElementById("gigStageModal").style.display = "none";
+        document.getElementById("allocationArea").style.display = "block";
+        
+        player.quarter++; 
+        player.energy = Math.min(100, player.energy + 20); 
+        currentGigType = ""; 
+        
+        if(player.quarter > player.totalQuarters) { ending(); } else { updateUI(); }
+    }
+}
+
+function ending(){
+    document.getElementById("main").innerHTML = "";
+    let result = "";
+    
+    if(player.scalperCount >= 3) { result = "<h2>🤢 结局：《臭名昭著的黄牛》</h2><p>你最终成为了自己最讨厌的人。你根本没有好好听过几场演出现场，只留下闲鱼里冷冰冰的数字和各大乐迷群里对你的拉黑避雷。</p>"; }
+    else if(player.vanity >= 100){ result = "<h2>📸 结局：《精致打卡大师》</h2><p>你达成了乐手私人出没地的大满贯，你风光无限，你精心拍照，你的小红书有上万粉丝，但你都快忘记最初爱上的那首歌叫什么名字了。</p>"; }
+    else if(player.bandRelation >= 80 && player.omnivore <= 3 && player.giftTicketCount >= 1){
+        result = `<h2>✨ 隐藏结局：《一千只蝴蝶的骸骨》</h2><p>一千个蝴蝶的骸骨能换取星辰吗？一千次流泪能换到一颗真心吗？</p><p>今晚你又失眠了，辗转反侧时打开手机看上一次的自己录下的视频，你仍然忍不住流泪。这种情感太奢侈了，就算让你心碎，就算你都不知道为什么爱会伴随痛，但你永远记得上一次巡演最终结束后你们在后台道别，他们上前抱你时告诉你下次再见。那时你抬头看见金星消失在夜幕的深处，你突然想起了等待与希望。再见，你知道的，一定还能有再见。
+</p>`;
+    }
+    else if(player.knowledge >= 180){
+        result = `<h2>🎧 结局：《迪哥》</h2><p>你的知识储备已经达到了恐怖的 ${player.knowledge} 点。你甚至不是很感兴趣看演出本身了，但是你对编曲、乐理、小众流派及摇滚通史的了解令人震撼。总有些人调侃地叫你迪哥，你心想，那又如何。</p>`;
+    }
+    else if(player.fame >= 60 && player.knowledge >= 120) { result = "<h2>结局：圈内知名自媒体</h2><p>在你的不懈努力下你终于成为了新一个音乐大V，靠在互联网写乐评和接大音乐节的宣发单实现曲线救国，你偶尔也会想自己当初为什么要干这个，你发现你的记忆很模糊了，但谁在乎呢。</p>"; }
+    else if(player.money >= 1100) { result = "<h2>🏢 结局：《夜幕落下》</h2><p>你通过拼命打工成功抵御了摇滚乐对钱包的侵蚀，你没有不快乐。现在的你，是个非常合格的社会生产螺丝钉，可那些在Livehouse台下高呼的夜晚，终究是离你越来越远了。</p>"; }
+    else if(player.bandRelation >= 80 && player.giftTicketCount === 0){
+        result = `<h2>🌟 结局：《星辰时刻》</h2><p>你什么都不求，因为纯粹的爱是不求任何回报的，每一次相见，都是你用现实里的汗水换来的双向奔赴。不管他们处于巅峰还是低谷，不管他们如何改变，你数年如一日地爱他们。当他们在台上的时刻他们是星，而看着他们的你也是台下最亮的那束光。</p>`;
+    }
+    else if(player.satisfaction >= 150){ result = "<h2>结局：《快乐》</h2><p>快乐很简单，就如同喜欢本身很简单。你保持着恰到好处的松弛感与热爱。你不会越界，也不会去硬卷，音乐成了你平庸生活里最完美的解药。你是真正懂得享受音乐的人。</p>"; }
+    else { result = "<h2>结局：《曾经》</h2><p>后来现实渐渐磨平了你的棱角。你再也挤不动Livehouse的前排了，你的本命乐队也成了歌单里偶尔切到才会听一下的时代眼泪。很久以后你无意间看到他们巡演消息，你感慨万千，但是你发现你早已经没有那样倾尽所有去看一个乐队的热情了。</p>"; }
+    
+    document.getElementById("main").innerHTML = result;
+}
+</script>
+</body>
+</html>
