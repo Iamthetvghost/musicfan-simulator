@@ -178,7 +178,7 @@
     <h2 id="timeTitle"></h2>
    
     <div class="status-bar">
-        <div>💰 资金: ￥<span id="stat-money"></span></div>
+        <div>💰 金钱: ￥<span id="stat-money"></span></div>
         <div>⚡ 体力: <span id="stat-energy"></span>/100</div>
         <div>❤️ 满足度: <span id="stat-satisfy"></span></div>
         <div>🧠 知识: <span id="stat-knowledge"></span></div>
@@ -403,7 +403,7 @@ function executeQuarter() {
         else if(choice === "sleep") simulatedEnergy += 35;
     });
 
-    if (simulatedEnergy < 10) {
+    if (simulatedEnergy < 0) {
         alert(`🚨 体力透支！安排的行动会让你透支到 ${simulatedEnergy}！请留出格子睡觉！`);
         return;
     }
@@ -474,7 +474,7 @@ function executeQuarter() {
             player.energy -= 5;
             player.satisfaction += 15;
             player.fame += 15;
-            let vanityAdd = getRandomRange(5, 9);
+            let vanityAdd = getRandomRange(5, 10);
             player.vanity += vanityAdd;
             player.obsession += 5;
             addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！有点小虚荣呢。满足度+15，声誉+15，狂热+5。`);
@@ -525,8 +525,10 @@ function getScaledDifficulty(baseDifficulty) {
 
 function getScalperProfit() {
     if(currentGigType === "mass") return 400;
-    if(currentGigType === "mainBand" && player.bandSize === "legend") return 400;
-    if(currentGigType === "mainBand" && player.bandSize === "medium") return 100;
+    if(currentGigType === "mainBand" && player.bandSize === "legend") return 1000;
+    if(currentGigType === "mainBand" && player.bandSize === "medium") return 500;
+    if(currentGigType === "indie") return 100;
+    if(currentGigType === "mainBand" && player.bandSize === "small") return 300;
     return 0;
 }
 
@@ -681,6 +683,12 @@ function closeGigStage() {
     else { updateUI(); }
 }
 
+function leaveGigEarly() {
+    addLog(`💦 你实在熬不住了，选择提前离场。剩下的演出只能全部遗憾错过...`);
+    summerQueue = []; // 直接清空夏季可能存在的第二场演出
+    closeGigStage();  // 结算并进入下一季度
+}
+
 function showGigStep() {
     let textObj = document.getElementById("gigStepText");
     let optionsObj = document.getElementById("gigOptions");
@@ -723,6 +731,7 @@ function showGigStep() {
         } else {
             optionsObj.innerHTML += `<button disabled>站在后排音控台附近 (体力不足 10)</button>`;
         }
+        optionsObj.innerHTML += `<button onclick="leaveGigEarly()" style="background:#a4b0be; color:#2f3542;">精疲力尽，我要提前离场回去睡觉 (这将直接结束演出！)</button>`;
     }
     else if(gigStep === 2) {
         let merchCost = getMerchCost();
@@ -1025,10 +1034,10 @@ function ending(){
     else if(player.satisfaction > 150 && player.bandRelation >= 50 && player.bandRelation < 80 && player.vanity < 50) {
         result = `<h2>🌹 特殊结局：《玫瑰》</h2><p>玫瑰未必送给爱人，因为这种感情是爱情无法比拟的，在下一次【${bandNameHTML()}】来到你的城市时，你仍然会站在底下欣赏至结束，你留了一朵玫瑰在台上——然后你走出室内，街上灯火通明。</p>`;
     }
-    else if(player.bandRelation >= 80 && player.giftTicketCount === 0 && player.vanity < 50){
+    else if(player.bandRelation >= 70 && player.giftTicketCount === 0 && player.vanity < 50){
         result = `<h2>🌟 结局：《星辰时刻》</h2><p>你什么都不求，因为纯粹的爱是不求任何回报的，每一次相见，都是你用现实里的汗水换来的双向奔赴。不管他们处于巅峰还是低谷，不管他们如何改变，你数年如一日地爱他们。当他们在台上的时刻他们是星，而看着他们的你也是台下最亮的那束光。</p>`;
     }
-    else if(player.knowledge > 180){
+    else if(player.knowledge > 200){
         result = `<h2>🎧 结局：《迪哥》</h2><p>你的知识储备已经达到了恐怖的 ${player.knowledge} 点。你甚至不是很感兴趣看演出本身了，但是你对编曲、乐理、小众流派及摇滚通史的了解令人震撼。总有些人调侃地叫你迪哥，你心想，那又如何。</p>`;
     }
     else if(player.fame >= 70 && player.knowledge >= 120) {
