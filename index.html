@@ -1035,10 +1035,10 @@ function ending(){
     else if(player.vanity >= 50 && player.bandRelation > 99) {
         result = "<h2>🪞 结局：《以爱之名》</h2><p>以爱做出的事情永远能被原谅吗？你太爱他们了，你总是像这样说服自己，你只是太爱他们了。就算偶尔你自己也困惑，你究竟是爱他们，还是爱这个爱着他们的自己，一切都已经模糊了。</p>";
     }   
-    else if(player.knowledge > 180){
+    else if(player.knowledge > 200){
         result = `<h2>🎧 结局：《迪哥》</h2><p>你的知识储备已经达到了恐怖的 ${player.knowledge} 点。你甚至不是很感兴趣看演出本身了，但是你对编曲、乐理、小众流派及摇滚通史的了解令人震撼。总有些人调侃地叫你迪哥，你心想，那又如何。</p>`;
     }
-    else if(player.fame >= 80 && player.knowledge >= 120) {
+    else if(player.fame >= 70 && player.knowledge >= 120) {
         result = "<h2>结局：《圈内知名自媒体》</h2><p>在你的不懈努力下你终于成为了新一个音乐大V，靠在互联网写乐评和接大音乐节的宣发单实现曲线救国，你偶尔也会想自己当初为什么要干这个，你发现你的记忆很模糊了，但谁在乎呢。</p>";
     }   
     else if(player.bandRelation >= 75 && player.giftTicketCount === 0 && player.vanity < 50){
