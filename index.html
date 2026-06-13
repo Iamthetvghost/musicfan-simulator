@@ -474,7 +474,7 @@ function executeQuarter() {
             player.energy -= 5;
             player.satisfaction += 15;
             player.fame += 15;
-            let vanityAdd = getRandomRange(5, 10);
+            let vanityAdd = getRandomRange(5, 9);
             player.vanity += vanityAdd;
             player.obsession += 5;
             addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！有点小虚荣呢。满足度+15，声誉+15，狂热+5。`);
@@ -1015,7 +1015,7 @@ function ending(){
     else if(player.vanity >= 100){
         result = "<h2>📸 结局：《精致打卡大师》</h2><p>你达成了乐手私人出没地的大满贯，你风光无限，你精心拍照，你的小红书有上万粉丝，但你都快忘记最初爱上的那首歌叫什么名字了。</p>";
     }
-    else if(player.money >= 1100) {
+    else if(player.money >= 1000) {
         result = "<h2>🏢 结局：《夜幕落下》</h2><p>你通过拼命打工成功抵御了摇滚乐对钱包的侵蚀，你没有不快乐。现在的你，是个非常合格的社会生产螺丝钉，可那些在Livehouse台下高呼的夜晚，终究是离你越来越远了。</p>";
     }
     else if(player.bandRelation >= 80 && player.omnivore <= 3 && player.giftTicketCount >= 1 && player.vanity < 50){
@@ -1025,10 +1025,10 @@ function ending(){
     else if(player.satisfaction > 150 && player.bandRelation >= 50 && player.bandRelation < 80 && player.vanity < 50) {
         result = `<h2>🌹 特殊结局：《玫瑰》</h2><p>玫瑰未必送给爱人，因为这种感情是爱情无法比拟的，在下一次【${bandNameHTML()}】来到你的城市时，你仍然会站在底下欣赏至结束，你留了一朵玫瑰在台上——然后你走出室内，街上灯火通明。</p>`;
     }
-    else if(player.bandRelation >= 70 && player.giftTicketCount === 0 && player.vanity < 50){
+    else if(player.bandRelation >= 80 && player.giftTicketCount === 0 && player.vanity < 50){
         result = `<h2>🌟 结局：《星辰时刻》</h2><p>你什么都不求，因为纯粹的爱是不求任何回报的，每一次相见，都是你用现实里的汗水换来的双向奔赴。不管他们处于巅峰还是低谷，不管他们如何改变，你数年如一日地爱他们。当他们在台上的时刻他们是星，而看着他们的你也是台下最亮的那束光。</p>`;
     }
-    else if(player.knowledge > 200){
+    else if(player.knowledge > 180){
         result = `<h2>🎧 结局：《迪哥》</h2><p>你的知识储备已经达到了恐怖的 ${player.knowledge} 点。你甚至不是很感兴趣看演出本身了，但是你对编曲、乐理、小众流派及摇滚通史的了解令人震撼。总有些人调侃地叫你迪哥，你心想，那又如何。</p>`;
     }
     else if(player.fame >= 70 && player.knowledge >= 120) {
