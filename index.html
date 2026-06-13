@@ -245,9 +245,9 @@ function clampStats() {
     player.money = Math.max(0, Math.floor(player.money));
     player.energy = Math.max(0, Math.min(100, Math.floor(player.energy)));
     player.satisfaction = Math.floor(player.satisfaction); // 1.9 起满足度允许为负，用于触发【抑郁】
-    player.knowledge = Math.max(0, Math.floor(player.knowledge));
-    player.obsession = Math.max(0, Math.floor(player.obsession));
-    player.bandRelation = Math.max(0, Math.floor(player.bandRelation));
+    player.knowledge = Math.floor(player.knowledge);
+    player.obsession = Math.floor(player.obsession);
+    player.bandRelation = Math.floor(player.bandRelation);
     player.vanity = Math.max(0, Math.floor(player.vanity));
 }
 
@@ -436,8 +436,8 @@ function executeQuarter() {
                 player.knowledge -= loseKnowledge;
                 addLog(`格子 ${index+1}：🔍 <span class="highlight">考古破防！</span>这次你不仅没有考到新乐队，还意外在互联网遗迹看到有人曾诋毁【${bandNameHTML()}】说【${bandNameHTML()}】的坏话，气死你了！体力-25，满足度-${loseSatisfy}，知识-${loseKnowledge}。`);
             } else {
-                let randomKnowledge = getRandomRange(10, 20);
-                let randomObsession = getRandomRange(10, 20);
+                let randomKnowledge = getRandomRange(10, 25);
+                let randomObsession = getRandomRange(10, 15);
                
                 player.knowledge += randomKnowledge;
                 player.obsession += randomObsession;
@@ -455,7 +455,7 @@ function executeQuarter() {
                     player.knowledge -= loseKnowledge;
                     addLog(`格子 ${index+1}：💿 <span class="highlight">不好，买到假碟了...</span>金钱-150，体力-15，满足度-${loseSatisfy}，知识-${loseKnowledge}。`);
                 } else {
-                    let randomKnowledge = getRandomRange(10, 20);
+                    let randomKnowledge = getRandomRange(15, 20);
                     let randomSatisfy = getRandomRange(15, 25);
                     let randomObsession = getRandomRange(5, 15);
                    
@@ -474,7 +474,7 @@ function executeQuarter() {
             player.energy -= 5;
             player.satisfaction += 15;
             player.fame += 15;
-            let vanityAdd = getRandomRange(5, 10);
+            let vanityAdd = getRandomRange(5, 8);
             player.vanity += vanityAdd;
             player.obsession += 5;
             addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！有点小虚荣呢。满足度+15，声誉+15，狂热+5。`);
