@@ -436,7 +436,7 @@ function executeQuarter() {
                 player.knowledge -= loseKnowledge;
                 addLog(`格子 ${index+1}：🔍 <span class="highlight">考古破防！</span>这次你不仅没有考到新乐队，还意外在互联网遗迹看到有人曾诋毁【${bandNameHTML()}】说【${bandNameHTML()}】的坏话，气死你了！体力-25，满足度-${loseSatisfy}，知识-${loseKnowledge}。`);
             } else {
-                let randomKnowledge = getRandomRange(10, 25);
+                let randomKnowledge = getRandomRange(12, 22);
                 let randomObsession = getRandomRange(10, 15);
                
                 player.knowledge += randomKnowledge;
@@ -455,7 +455,7 @@ function executeQuarter() {
                     player.knowledge -= loseKnowledge;
                     addLog(`格子 ${index+1}：💿 <span class="highlight">不好，买到假碟了...</span>金钱-150，体力-15，满足度-${loseSatisfy}，知识-${loseKnowledge}。`);
                 } else {
-                    let randomKnowledge = getRandomRange(15, 20);
+                    let randomKnowledge = getRandomRange(10, 18);
                     let randomSatisfy = getRandomRange(15, 25);
                     let randomObsession = getRandomRange(5, 15);
                    
