@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>独立乐迷模拟器 Alpha 1.9.9 (空测版)</title>
+<title>独立乐迷模拟器 Alpha 2.0！</title>
 <style>
     * { box-sizing: border-box; }
     html { background: #eeeeee; }
@@ -138,11 +138,11 @@
 
 <div id="game">
 <h1>独立乐迷模拟器 Alpha 1.9.9</h1>
-<p style="line-height:1.7; color:#555; background:#fafafa; padding:12px; border-left:4px solid #2ed573; border-radius:4px;">独立乐迷模拟器，你是一个路过爱听歌的普通人。接下来三年，你是努力打工赚钱放肆买周边，还是努力成为知识丰富的发掘者，快乐的享受者，小有名气的资讯博主，又或者，只是紧紧跟着你的本命乐队——直到奇迹出现呢？</p>
-<p style="line-height:1.7; color:#7a4b00; background:#fff8e1; padding:12px; border-left:4px solid #f1c40f; border-radius:4px; font-weight:bold;">⚠️ 内测提示：请务必好好看底部日志。很多关键剧情、数值变化和隐藏走向都写在那里，不看日志真的会错过很多事！</p>
+<p style="line-height:1.7; color:#7a4b00; background:#fff8e1; padding:12px; border-left:4px solid #f1c40f; border-radius:4px; font-weight:bold;">⚠️ 测试版提示：请务必好好看底部日志。很多关键剧情、数值变化和隐藏走向都写在那里，不看日志真的会错过很多事！</p>
 
 <!-- 1. 初始设置界面 -->
 <div id="setup">
+   <p style="line-height:1.7; color:#666; background:#fafafa; padding:12px; border-left:4px solid #2ed573; border-radius:4px;">你是一个路过爱听歌的普通人。接下来三年，你是努力打工赚钱放肆买周边，还是努力成为知识丰富的发掘者，快乐的享受者，小有名气的资讯博主，又或者，只是紧紧跟着你的本命乐队——直到奇迹出现呢？</p>
     <h3>创建你的乐迷档案</h3>
     <div class="input-group">
         <label>输入你本命乐队的名字：</label>
@@ -305,7 +305,7 @@ function getRandomRange(min, max) {
 function triggerInternetEvent(index) {
     let events = [
         {
-            weight: 0.35,
+            weight: 0.32,
             func: () => {
                 let val = Math.floor(Math.random() * 5) + 1;
                 player.knowledge += val;
@@ -313,7 +313,7 @@ function triggerInternetEvent(index) {
             }
         },
         {
-            weight: 0.35,
+            weight: 0.33,
             func: () => {
                 let val = Math.floor(Math.random() * 5) + 1;
                 player.knowledge = Math.max(0, player.knowledge - val);
@@ -325,6 +325,13 @@ function triggerInternetEvent(index) {
             func: () => {
                 player.knowledge += 10; player.satisfaction += 10;
                 addLog(`格子 ${index+1}：📱 网上冲浪：意外刷到某支古早团的未公开现场录像！狂喜！知识+10，满足度+10。`);
+            }
+        },
+        {
+            weight: 0.05,
+            func: () => {
+                player.obsession += 20; player.satisfaction += 25;
+                addLog(`格子 ${index+1}：📱 网上冲浪：你刷到正主更新社媒，看起来心情很好，这让你心情也很好。满足度+25，狂热+20`);
             }
         },
         {
@@ -472,13 +479,23 @@ function executeQuarter() {
         else if(choice === "group") { triggerGroupEvent(index); }
         else if(choice === "social") {
             player.energy -= 5;
-            player.satisfaction += 15;
-            player.fame += 15;
-            let vanityAdd = getRandomRange(5, 8);
-            player.vanity += vanityAdd;
-            player.obsession += 5;
-            addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！有点小虚荣呢。满足度+15，声誉+15，狂热+5。`);
+            
+            // 新增：虚荣大于33且从未被挂过，必然强制触发一次断章取义事件
+            if (player.vanity > 33 && !player.hasBeenExposed) {
+                player.hasBeenExposed = true;
+                player.satisfaction -= 66;
+                addLog(`格子 ${index+1}：⚠️ 【警告】你在公开平台发了太多东西，总有人拿着你的账号断章取义，请谨慎上网！（满足度 -66）`);
+            } else {
+                // 你原本正常的发社媒逻辑
+                player.satisfaction += 15;
+                player.fame += 15;
+                let vanityAdd = getRandomRange(5, 10);
+                player.vanity += vanityAdd;
+                player.obsession += 5;
+                addLog(`格子 ${index+1}：📱 发送了精致排版的观演社媒！被人夸奖吹捧！有点小虚荣呢。满足度+15，声誉+15，狂热+5。`);
+            }
         }
+
         else if(choice === "fanwork") {
             if(player.money >= 250) {
                 player.money -= 250;
@@ -902,7 +919,7 @@ function handleGigStep(choice) {
         player.scalperCount++;
         let msg = `⚠️ 倒卖门票成功：金钱+${scalperProfit}，满足度-${penalty}。你离自己讨厌的人又近了一步。`;
         addLog(`<span class='highlight'>${msg}</span>`);
-        if(player.scalperCount === 3) { player.fame -= 99; addLog("🚨 第三次当黄牛被全网挂出避雷，声誉-99！"); }
+        if(player.scalperCount === 4) { player.fame -= 99; addLog("🚨 你当了太多次黄牛，被人挂出避雷了。声誉-99！"); }
         updateUI();
         finishGigFlow(); return;
     }
@@ -1015,7 +1032,7 @@ function ending(){
     document.getElementById("main").innerHTML = "";
     let result = "";
    
-    if(player.scalperCount >= 3) {
+    if(player.scalperCount >= 4) {
         result = "<h2>🤢 结局：《臭名昭著的黄牛》</h2><p>你最终成为了自己最讨厌的人。你根本没有好好听过几场演出现场，只留下闲鱼里冷冰冰的数字和各大乐迷群里对你的拉黑避雷。</p>";
     }
     
@@ -1046,7 +1063,7 @@ function ending(){
         result = `<h2>🌟 结局：《星辰时刻》</h2><p>你什么都不求，因为纯粹的爱是不求任何回报的，每一次相见，都是你用现实里的汗水换来的双向奔赴。不管他们处于巅峰还是低谷，不管他们如何改变，你数年如一日地爱他们。当他们在台上的时刻他们是星，而看着他们的你也是台下最亮的那束光。</p>`;
     }
     
-    else if(player.fame > 45 && player.vanity > 35) {
+    else if(player.fame > 50 && player.vanity > 35) {
         result = `<h2>🕸️ 结局：《小小网虫》</h2><p>上网久了你有时候也是真的想吃口流量饭，但你又没有那么的会营销，你拉扯，你挣扎，你看着这个月惨淡的流量，打开了【${bandNameHTML()}】的演出录像，也罢，好歹你队还在带给你快乐！</p>`;
     }
     else if(player.satisfaction >= 120){
