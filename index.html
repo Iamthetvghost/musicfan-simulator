@@ -995,6 +995,8 @@ let hasBoughtMerch = false;
 
 // 新增：这一场演出是否站过前排
 let wasFrontRow = false;
+//新增了：是否抢过歌单
+let setlistAttempted = false;
 
 
 function determineGigEvent(){
@@ -1629,6 +1631,7 @@ function showGigStep(){
 /* ================= 抢歌单 ================= */
 
 
+
 function trySetlist(){
 
     let textObj =
@@ -1638,6 +1641,15 @@ function trySetlist(){
         document.getElementById("gigOptions");
 
 
+    // 本场演出只允许尝试一次，成功和失败都一样
+    if(setlistAttempted){
+        return;
+    }
+
+    // 立即锁定本次尝试，防止重复点击
+    setlistAttempted = true;
+
+
     if(player.energy < 10){
 
         addLog(
@@ -1645,10 +1657,10 @@ function trySetlist(){
         );
 
         textObj.innerHTML =
-            "你成功站到了前排，但体力已经不足 10，实在没力气去抢歌单了。";
+            "📄 你成功站到了前排，但体力已经不足 10，实在没力气去抢歌单了。";
 
         optionsObj.innerHTML =
-            `<button onclick="handleSetlistResult()">遗憾离场</button>`;
+            `<button onclick="handleSetlistResult()">遗憾离场，去看周边</button>`;
 
         return;
     }
@@ -1696,19 +1708,19 @@ function trySetlist(){
 
         else if(currentGigType === "indie"){
 
-            difficulty = 75;
+            difficulty = 70;
 
         }
 
         else if(currentGigType === "mass"){
 
-            difficulty = 90;
+            difficulty = 80;
 
         }
 
         else if(currentGigType === "festival"){
 
-            difficulty = 95;
+            difficulty = 90;
 
         }
 
@@ -1795,18 +1807,12 @@ function trySetlist(){
 
 
         textObj.innerHTML =
-            `📄【歌单争夺失败】<br>
+            `<span class="red-text">📄【歌单争夺失败】</span><br>
             （${powerText} ＜ 检定难度 ${difficulty}）<br><br>
             你在人群中伸手抢了半天，最终还是没能拿到歌单。<br><br>
-            白费了 10 点体力。`;
-
-
-        updateUI();
-
-        // 抢歌单失败，直接结束当前演出流程
-        gigStep = 2;
-        showGigStep();
-        return;
+            白白消耗了 10 点体力。<br><br>
+            人群渐渐散去，你只好遗憾地离开内场。<br>
+            不过，演出周边摊位还剩下很多周边，去逛逛吧。`;
 
     }
 
@@ -1814,8 +1820,9 @@ function trySetlist(){
     updateUI();
 
 
-    optionsObj.innerHTML +=
-        `<button onclick="handleSetlistResult()">离开现场</button>`;
+    // 成功或失败都只能离场，不能重新抢歌单
+    optionsObj.innerHTML =
+        `<button onclick="handleSetlistResult()">离开现场，去看merch</button>`;
 }
 
 
@@ -1825,6 +1832,7 @@ function handleSetlistResult(){
 
     showGigStep();
 }
+
 
 
 
@@ -2655,12 +2663,12 @@ function ending(){
 
         /* 新增：六张歌单欧皇结局 */
 
-    else if(player.playlistCount >= 6){
+    else if(player.playlistCount >= 4){
 
         result =
             `<h2>🍀 欧皇结局：《收集者》</h2>
 
-            <p>而你我的朋友，是真正的收集者。好多歌单，你甚至不知道自己到底是怎么做到的。</p>
+            <p>而你我的朋友，是真正的收集者。你整理房间时发现好多歌单，你甚至不知道自己到底是怎么做到的。</p>
 
             <p><b>可能纯粹是运气太好了。</b></p>
 
