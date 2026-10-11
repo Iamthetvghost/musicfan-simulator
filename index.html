@@ -1480,8 +1480,7 @@ function showGigStep(){
 
     /* 新增：抢歌单 */
 
-    else if(gigStep === 1.5){
-
+    
         let difficulty = 50;
 
         if(currentGigType === "boutique"){
@@ -1489,15 +1488,15 @@ function showGigStep(){
         }
 
         else if(currentGigType === "indie"){
-            difficulty = 75;
+            difficulty = 70;
         }
 
         else if(currentGigType === "mass"){
-            difficulty = 90;
+            difficulty = 80;
         }
 
         else if(currentGigType === "festival"){
-            difficulty = 95;
+            difficulty = 90;
         }
 
         else if(currentGigType === "mainBand"){
@@ -1524,6 +1523,7 @@ function showGigStep(){
                 `<span class="highlight">⚠️ 音乐节抢歌单难度极高，请谨慎尝试。</span><br><br>`;
 
         }
+
 
 
         textObj.innerHTML =
