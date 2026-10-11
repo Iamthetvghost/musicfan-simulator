@@ -1628,6 +1628,7 @@ function showGigStep(){
 
 /* ================= 抢歌单 ================= */
 
+
 function trySetlist(){
 
     let textObj =
@@ -1799,6 +1800,14 @@ function trySetlist(){
             你在人群中伸手抢了半天，最终还是没能拿到歌单。<br><br>
             白费了 10 点体力。`;
 
+
+        updateUI();
+
+        // 抢歌单失败，直接结束当前演出流程
+        gigStep = 2;
+        showGigStep();
+        return;
+
     }
 
 
@@ -1816,6 +1825,8 @@ function handleSetlistResult(){
 
     showGigStep();
 }
+
+
 
 
 /* ================= 饮料 ================= */
